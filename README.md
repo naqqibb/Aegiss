@@ -28,7 +28,9 @@
 Aegiss/
 ├── README.md           # This file
 ├── LICENSE            # MIT License
-├── OPERATOR           # Main threat feed engine
+├── OPERATOR           # APT C2 threat feed engine
+├── atm_defence/       # ATM defence system (transaction + tamper monitoring)
+├── tests/             # Unit and integration tests
 └── .github/           # GitHub configuration
 ```
 
@@ -90,6 +92,84 @@ The OPERATOR continuously:
 | **PLA** | State-Sponsored (China) | 103.xxx.xxx.xxx, 114.xxx.xxx.xxx |
 | **GRU** | State-Sponsored (Russia) | 91.207.xxx.xxx, 185.234.xxx.xxx |
 | **APT41** | Cybercriminal Enterprise | 45.142.xxx.xxx |
+
+## 🏧 ATM Defence System
+
+The `atm_defence/` package is a **defensive monitoring** subsystem for
+Automated Teller Machine (ATM) networks. It watches a live transaction stream
+and physical-sensor feed and raises explainable alerts on suspicious activity —
+suitable for a fleet of terminals such as those operated for the
+**Kementerian Pertahanan** (Ministry of Defence) estate.
+
+It is pure standard library (no external dependencies) and fully unit-tested.
+
+### Detection capabilities
+
+| Rule | What it catches | Severity |
+|------|-----------------|----------|
+| `blacklist` | Known-stolen cards or flagged terminals | CRITICAL / HIGH |
+| `impossible_travel` | Same card used in two places faster than a jet could fly | CRITICAL |
+| `pin_retry` | PIN-guessing (excessive failed attempts) | HIGH |
+| `velocity` | Too many transactions in a short window | HIGH |
+| `daily_cap` | Rolling withdrawals exceeding a cap | HIGH |
+| `high_amount` | Single oversized withdrawal | MEDIUM / HIGH |
+| `off_hours` | Activity outside a terminal's operating hours | LOW |
+| `tamper` | Skimmer overlay / jackpotting / camera-block via chassis sensors | CRITICAL / HIGH |
+
+### Quick start
+
+```bash
+# Run the built-in simulation
+python -m atm_defence.cli
+
+# Show only serious alerts
+python -m atm_defence.cli --min-severity HIGH
+```
+
+### Library usage
+
+```python
+from atm_defence import (
+    ATM, Transaction, DefenceEngine, AlertBus, ConsoleSink,
+)
+
+bus = AlertBus()
+bus.subscribe(ConsoleSink())
+
+engine = DefenceEngine(
+    atms=[ATM("KL-001", 3.1390, 101.6869, branch="Kuala Lumpur")],
+    bus=bus,
+)
+engine.blacklist_card("CARD-STOLEN-9999")
+
+for alert in engine.process(Transaction("CARD-STOLEN-9999", "KL-001", 500.0)):
+    print(alert.as_line())
+```
+
+The engine keeps per-card rolling history, runs every rule against each
+incoming transaction, and publishes results to an `AlertBus` that fans out to
+any number of sinks (console, in-memory, or your own SIEM connector). A faulty
+rule is isolated so it can never take down the pipeline.
+
+### Physical tamper monitoring
+
+```python
+from atm_defence import TamperMonitor, TamperEvent
+
+mon = TamperMonitor()
+alert = mon.observe(TamperEvent("PJ-014", "card_reader", 0.95))  # skimmer overlay
+if alert:
+    print(alert.as_line())
+```
+
+`TamperMonitor` maintains a rolling baseline per `(terminal, sensor)` and alerts
+on sharp deviations or a hard safety trip.
+
+### Running the tests
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## 🔒 License
 
