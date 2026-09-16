@@ -171,6 +171,25 @@ on sharp deviations or a hard safety trip.
 python -m unittest discover -s tests -v
 ```
 
+## 🛰️ APEX — Threat-Intelligence Integration
+
+The [`apex/`](apex) package is Aegis CyberNet's integration layer for external
+threat-intelligence providers. It ingests and **normalises** feeds from
+**[hunt.io](https://apidocs.hunt.io/docs/c2-feed)** (C2 infrastructure) and
+**[Huntress](https://api.huntress.io/docs)** (managed EDR incident reports) into
+a single, de-duplicated schema the platform can consume.
+
+```bash
+python -m apex --status     # show configured providers
+python -m apex --collect    # collect a normalised, de-duplicated feed
+python -m apex --demo       # run offline with bundled sample data (no keys)
+```
+
+Built defensively — environment-only secrets that never print, mandatory TLS
+verification, jittered retries, rate limiting, defensive parsing, and
+per-provider fault isolation. See [`apex/README.md`](apex/README.md) and
+[`SECURITY.md`](SECURITY.md).
+
 ## 🔒 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
